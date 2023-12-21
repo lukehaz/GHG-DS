@@ -1,0 +1,758 @@
+---
+title: "DSP3.3"
+author: "Luke Hazelton"
+format: html
+editor: visual
+---
+
+## DSPs3.3
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(modelr)
+```
+
+```{r}
+# Import the Excel file
+data <- read_csv("FINALMERGE.csv",skip=5)
+
+data2 <- read_csv("GHGSectors.csv")
+```
+
+```{r}
+View(data)
+View(data2)
+```
+
+```{r}
+head(data)
+str(data)
+summary(data)
+```
+
+```{r}
+head(data2)
+str(data2)
+summary(data2)
+```
+
+```{r}
+
+
+# Data preprocessing: Selecting relevant columns and converting categorical variables to factors
+data2 <- data2 %>%
+  select(Year, GDP, MED, POP, COW, TGE, `Economic Sectors`, `IPCC Sector`) %>%
+  mutate(`Economic Sectors` = as.factor(`Economic Sectors`),
+         `IPCC Sector` = as.factor(`IPCC Sector`))
+
+# Train a linear regression model
+lm_model <- lm(TGE ~ ., data = data2)
+
+# Summary of the model
+summary(lm_model)
+
+# Predictions using the model
+predicted_values <- predict(lm_model)
+
+# Calculate evaluation metrics: MAE, RMSE, R-squared
+mae <- mean(abs(predicted_values - data2$TGE))
+rmse <- sqrt(mean((predicted_values - data2$TGE)^2))
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Assuming 'data2' contains your dataset and 'lm_model' is the fitted linear regression model
+
+# Predictions using the model
+predicted_values <- predict(lm_model)
+
+# Creating a dataframe with actual and predicted values
+results <- data.frame(Actual = data2$TGE, Predicted = predicted_values)
+
+# Plotting predicted vs actual values
+library(ggplot2)
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue") +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(title = "Predicted vs Actual GHG Emissions", x = "Actual", y = "Predicted") +
+  theme_minimal()
+
+```
+
+```{r}
+# Creating scatterplots
+ggplot(data, aes(x = TGE)) +
+  geom_point(aes(y = MED), color = "blue") +
+  labs(title = "GHG vs Median Household Income") +
+  xlab("Total Gross Greenhouse Gas Emissions") +
+  ylab("Median Household Income")
+
+ggplot(data, aes(x = TGE)) +
+  geom_point(aes(y = POP), color = "red") +
+  labs(title = "GHG vs US Population") +
+  xlab("Total Gross Greenhouse Gas Emissions") +
+  ylab("US Population")
+
+ggplot(data, aes(x = TGE)) +
+  geom_point(aes(y = COW), color = "green") +
+  labs(title = "GHG vs Cattle Population") +
+  xlab("Total Gross Greenhouse Gas Emissions") +
+  ylab("Cattle Population")
+
+ggplot(data, aes(x = TGE)) +
+  geom_point(aes(y = GDP), color = "orange") +
+  labs(title = "GHG vs US GDP") +
+  xlab("Total Gross Greenhouse Gas Emissions") +
+  ylab("US GDP")
+```
+
+```{r}
+
+```
+
+```{r}
+# Bar graph for GHG and Median Household Income across years
+ggplot(data, aes(x = factor(Year))) +
+  geom_bar(aes(y = TGE), stat = "identity", fill = "blue") +
+  geom_line(aes(y = MED ), color = "red", size = .001) +  # Multiplying by 10 for better visualization
+  labs(title = "GHG and Median Household Income across Years") +
+  xlab("Year") +
+  ylab("GHG (Blue) / Median Household Income (Red)")
+
+# Bar graph for GHG and US Population across years
+ggplot(data, aes(x = factor(Year))) +
+  geom_bar(aes(y = TGE), stat = "identity", fill = "green") +
+  geom_line(aes(y = POP / 100000), color = "orange", size = 1) +  # Dividing by 100,000 for better visualization
+  labs(title = "GHG and US Population across Years") +
+  xlab("Year") +
+  ylab("GHG (Green) / US Population (Orange)")
+
+# Bar graph for GHG and US GDP across years
+ggplot(data, aes(x = factor(Year))) +
+  geom_bar(aes(y = TGE), stat = "identity", fill = "purple") +
+  geom_line(aes(y = GDP / 1000), color = "brown", size = 1) +  # Dividing by 1000 for better visualization
+  labs(title = "GHG and US GDP across Years") +
+  xlab("Year") +
+  ylab("GHG (Purple) / US GDP (Brown)")
+
+```
+
+```{r}
+# Splitting the data into training and test sets (80% training, 20% test)
+set.seed(123)  # Setting seed for reproducibility
+train_indices <- sample(nrow(data), 0.8 * nrow(data))  # Randomly select 80% of indices
+train_data <- data[train_indices, ]  # Training data
+test_data <- data[-train_indices, ]  # Test data
+
+# Creating the linear regression model using the training data
+lm_model <- lm(TGE ~ GDP, data = train_data)
+
+# Predicting GHG emissions on the test set
+predicted_values <- predict(lm_model, newdata = test_data)
+
+# Evaluating the model's performance
+actual_values <- test_data$TGE
+model_performance <- data.frame(Actual = actual_values, Predicted = predicted_values)
+
+```
+
+```{r}
+# Calculating evaluation metrics
+mse <- mean((predicted_values - actual_values)^2)  # Mean Squared Error
+r_squared <- 1 - (sum((actual_values - predicted_values)^2) / sum((actual_values - mean(actual_values))^2))  # R-squared
+
+# Printing evaluation metrics
+cat("Mean Squared Error (MSE)(difference between the predicted and actual GHG emissions):", mse, "\n")
+cat("R-squared (% model can explain):", r_squared, "\n")
+
+# Visualizing predicted vs actual values
+
+results <- data.frame(Actual = actual_values, Predicted = predicted_values)
+
+ggplot(results, aes(x = Actual, y = Predicted)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Actual vs Predicted GHG Emissions") +
+  xlab("Actual GHG Emissions") +
+  ylab("Predicted GHG Emissions")
+
+```
+
+```{r}
+# Creating the linear regression model for GHG and US Population
+lm_model_pop <- lm(TGE ~ POP, data = train_data)
+
+# Predicting GHG emissions on the test set using the population model
+predicted_values_pop <- predict(lm_model_pop, newdata = test_data)
+
+# Calculating evaluation metrics for the population model
+mse_pop <- mean((predicted_values_pop - actual_values)^2)  # Mean Squared Error
+r_squared_pop <- 1 - (sum((actual_values - predicted_values_pop)^2) / sum((actual_values - mean(actual_values))^2))  # R-squared
+
+# Printing evaluation metrics for the population model
+cat("Mean Squared Error (MSE) - Population Model:", mse_pop, "\n")
+cat("R-squared - Population Model:", r_squared_pop, "\n")
+
+# Visualizing predicted vs actual values for the population model
+results_pop <- data.frame(Actual = actual_values, Predicted = predicted_values_pop)
+
+ggplot(results_pop, aes(x = Actual, y = Predicted)) +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "blue", linetype = "dashed") +
+  labs(title = "Actual vs Predicted GHG Emissions (Population Model)") +
+  xlab("Actual GHG Emissions") +
+  ylab("Predicted GHG Emissions")
+
+```
+
+```{r}
+# Creating a quadratic model for GHG and Population
+train_data$POP_squared <- train_data$POP^2  # Creating a squared term for population
+test_data$POP_squared <- test_data$POP^2
+
+lm_model_quad <- lm(TGE ~ POP + POP_squared, data = train_data)  # Quadratic model
+
+# Predicting GHG emissions on the test set using the quadratic model
+predicted_values_quad <- predict(lm_model_quad, newdata = test_data)
+
+# Calculating evaluation metrics for the quadratic model
+mse_quad <- mean((predicted_values_quad - actual_values)^2)  # Mean Squared Error
+r_squared_quad <- 1 - (sum((actual_values - predicted_values_quad)^2) / sum((actual_values - mean(actual_values))^2))  # R-squared
+
+# Printing evaluation metrics for the quadratic model
+cat("Mean Squared Error (MSE) - Quadratic Model:", mse_quad, "\n")
+cat("R-squared - Quadratic Model:", r_squared_quad, "\n")
+
+```
+
+```{r}
+# Creating a dataframe for visualization
+results_quad <- data.frame(Actual = actual_values, Predicted = predicted_values_quad)
+
+# Adding predicted values to the test data
+test_data$Predicted = predicted_values_quad
+
+# Sorting the test data by population for better visualization
+test_data <- test_data[order(test_data$POP), ]
+
+# Visualizing actual vs predicted values with a fitted curve
+ggplot(test_data, aes(x = POP, y = TGE)) +
+  geom_point(color = "blue") +
+  geom_line(aes(y = Predicted), color = "red", size = 1) +
+  labs(title = "Quadratic Model: Actual vs Predicted GHG Emissions") +
+  xlab("US Population") +
+  ylab("GHG Emissions")
+
+```
+
+```{r}
+# Load the randomForest library if not already loaded
+#install.packages("randomForest")
+library(randomForest)
+
+# Creating a Random Forest model
+rf_model <- randomForest(TGE ~ MED + POP + COW + GDP, data = train_data)
+
+# Predicting GHG emissions on the test set using Random Forest
+predicted_values_rf <- predict(rf_model, newdata = test_data)
+
+# Calculating evaluation metrics for Random Forest
+mse_rf <- mean((predicted_values_rf - actual_values)^2)  # Mean Squared Error
+r_squared_rf <- cor(predicted_values_rf, actual_values)^2  # R-squared
+
+# Printing evaluation metrics for Random Forest
+cat("Mean Squared Error (MSE) - Random Forest:", mse_rf, "\n")
+cat("R-squared - Random Forest:", r_squared_rf, "\n")
+
+```
+
+```{r}
+# Adding squared term for COW
+train_data$COW_squared <- train_data$COW^2  # Creating a squared term for cattle population
+test_data$COW_squared <- test_data$COW^2
+
+# Creating a quadratic model for GHG and COW
+lm_model_poly_cow <- lm(TGE ~ COW + COW_squared, data = train_data)  # Quadratic model for COW
+
+# Predicting GHG emissions on the test set using the quadratic model with COW
+predicted_values_poly_cow <- predict(lm_model_poly_cow, newdata = test_data)
+
+# Calculating evaluation metrics for the quadratic COW model
+mse_poly_cow <- mean((predicted_values_poly_cow - actual_values)^2)  # Mean Squared Error
+r_squared_poly_cow <- 1 - (sum((actual_values - predicted_values_poly_cow)^2) / sum((actual_values - mean(actual_values))^2))  # R-squared
+
+# Printing evaluation metrics for the quadratic COW model
+cat("Mean Squared Error (MSE) - Polynomial Model (COW):", mse_poly_cow, "\n")
+cat("R-squared - Polynomial Model (COW):", r_squared_poly_cow, "\n")
+
+# Creating a dataframe for visualization
+results_poly_cow <- data.frame(Actual = actual_values, Predicted = predicted_values_poly_cow)
+
+# Adding predicted values to the test data
+test_data$Predicted_COW = predicted_values_poly_cow
+
+# Sorting the test data by COW for better visualization
+test_data <- test_data[order(test_data$COW), ]
+
+# Visualizing actual vs predicted values with a fitted curve for COW
+ggplot(test_data, aes(x = COW, y = TGE)) +
+  geom_point(color = "blue") +
+  geom_line(aes(y = Predicted_COW), color = "red", size = 1) +
+  labs(title = "Polynomial Model (COW): Actual vs Predicted GHG Emissions") +
+  xlab("Cattle Population") +
+  ylab("GHG Emissions")
+
+```
+
+```{r}
+# Adding squared terms for all variables including GDP
+train_data$MED_squared <- train_data$MED^2
+test_data$MED_squared <- test_data$MED^2
+
+train_data$POP_squared <- train_data$POP^2
+test_data$POP_squared <- test_data$POP^2
+
+train_data$COW_squared <- train_data$COW^2
+test_data$COW_squared <- test_data$COW^2
+
+train_data$GDP_squared <- train_data$GDP^2
+test_data$GDP_squared <- test_data$GDP^2
+
+# Creating a Polynomial Regression model for GHG using all variables (including GDP)
+lm_model_poly_all_gdp <- lm(TGE ~ MED + MED_squared + POP + POP_squared + COW + COW_squared + GDP + GDP_squared, data = train_data)
+
+# Predicting GHG emissions on the test set using the Polynomial model with GDP
+predicted_values_poly_all_gdp <- predict(lm_model_poly_all_gdp, newdata = test_data)
+
+# Calculating evaluation metrics for the Polynomial model with GDP
+mse_poly_all_gdp <- mean((predicted_values_poly_all_gdp - actual_values)^2)  # Mean Squared Error
+r_squared_poly_all_gdp <- 1 - (sum((actual_values - predicted_values_poly_all_gdp)^2) / sum((actual_values - mean(actual_values))^2))  # R-squared
+
+# Printing evaluation metrics for the Polynomial model with GDP
+cat("Mean Squared Error (MSE) - Polynomial Model (All Variables with GDP):", mse_poly_all_gdp, "\n")
+cat("R-squared - Polynomial Model (All Variables with GDP):", r_squared_poly_all_gdp, "\n")
+
+# Creating a dataframe for visualization
+results_poly_all_gdp <- data.frame(Actual = actual_values, Predicted = predicted_values_poly_all_gdp)
+
+# Adding predicted values to the test data
+test_data$Predicted_All_GDP = predicted_values_poly_all_gdp
+
+# Sorting the test data by one of the variables for better visualization
+test_data <- test_data[order(test_data$GDP), ]
+
+# Visualizing actual vs predicted values with a fitted curve for one of the variables (GDP)
+ggplot(test_data, aes(x = GDP, y = TGE)) +
+  geom_point(color = "blue") +
+  geom_line(aes(y = Predicted_All_GDP), color = "red", size = 1) +
+  labs(title = "Polynomial Model (All Variables with GDP): Actual vs Predicted GHG Emissions") +
+  xlab("US GDP") +
+  ylab("GHG Emissions")
+
+```
+
+```{r}
+# Splitting the data into training, validation, and test sets
+set.seed(123)  # Setting seed for reproducibility
+trainIndex <- sample(1:nrow(data), 0.7 * nrow(data))  # 70% for training
+val_test_Index <- setdiff(1:nrow(data), trainIndex)  # Remaining 30% for validation and testing
+valIndex <- sample(val_test_Index, 0.5 * length(val_test_Index))  # 50% of remaining for validation
+testIndex <- setdiff(val_test_Index, valIndex)  # Remaining 50% for testing
+
+train_data <- data[trainIndex, ]
+val_data <- data[valIndex, ]
+test_data <- data[testIndex, ]
+
+# Adding squared terms for all variables including GDP in training, validation, and test sets
+train_data$MED_squared <- train_data$MED^2
+val_data$MED_squared <- val_data$MED^2
+test_data$MED_squared <- test_data$MED^2
+
+train_data$POP_squared <- train_data$POP^2
+val_data$POP_squared <- val_data$POP^2
+test_data$POP_squared <- test_data$POP^2
+
+train_data$COW_squared <- train_data$COW^2
+val_data$COW_squared <- val_data$COW^2
+test_data$COW_squared <- test_data$COW^2
+
+train_data$GDP_squared <- train_data$GDP^2
+val_data$GDP_squared <- val_data$GDP^2
+test_data$GDP_squared <- test_data$GDP^2
+
+# Creating a Polynomial Regression model for GHG using all variables (including GDP) on the training set
+lm_model_poly_all_gdp <- lm(TGE ~ MED + MED_squared + POP + POP_squared + COW + COW_squared + GDP + GDP_squared, data = train_data)
+
+# Predicting GHG emissions on the validation set using the Polynomial model with GDP
+predicted_values_val <- predict(lm_model_poly_all_gdp, newdata = val_data)
+
+# Calculating evaluation metrics for the Polynomial model with GDP on the validation set
+mse_val <- mean((predicted_values_val - val_data$TGE)^2)  # Mean Squared Error on validation set
+r_squared_val <- 1 - (sum((val_data$TGE - predicted_values_val)^2) / sum((val_data$TGE - mean(val_data$TGE))^2))  # R-squared on validation set
+
+# Printing evaluation metrics for the Polynomial model with GDP on the validation set
+cat("Mean Squared Error (MSE) - Polynomial Model (All Variables with GDP) on Validation Set:", mse_val, "\n")
+cat("R-squared - Polynomial Model (All Variables with GDP) on Validation Set:", r_squared_val, "\n")
+
+# Predicting GHG emissions on the test set using the Polynomial model with GDP
+predicted_values_test <- predict(lm_model_poly_all_gdp, newdata = test_data)
+
+# Calculating evaluation metrics for the Polynomial model with GDP on the test set
+mse_test <- mean((predicted_values_test - test_data$TGE)^2)  # Mean Squared Error on test set
+r_squared_test <- 1 - (sum((test_data$TGE - predicted_values_test)^2) / sum((test_data$TGE - mean(test_data$TGE))^2))  # R-squared on test set
+
+# Printing evaluation metrics for the Polynomial model with GDP on the test set
+cat("Mean Squared Error (MSE) - Polynomial Model (All Variables with GDP) on Test Set:", mse_test, "\n")
+cat("R-squared - Polynomial Model (All Variables with GDP) on Test Set:", r_squared_test, "\n")
+
+
+```
+
+```{r}
+# Creating a dataframe for visualization on the test set
+results_test <- data.frame(Actual = test_data$TGE, Predicted = predicted_values_test)
+
+# Creating a scatterplot with a regression line (Actual vs Predicted GHG Emissions)
+ggplot(results_test, aes(x = Actual, y = Predicted)) +
+  geom_point(color = "blue") +
+  geom_smooth(method = "lm", formula = y ~ x, color = "red", se = FALSE) +
+  labs(title = "Polynomial Regression: Actual vs Predicted GHG Emissions on Test Set") +
+  xlab("Actual GHG Emissions") +
+  ylab("Predicted GHG Emissions")
+
+```
+
+```{r}
+# Splitting the data into training, validation, and test sets
+set.seed(123)
+trainIndex <- sample(1:nrow(data), 0.7 * nrow(data))
+val_test_Index <- setdiff(1:nrow(data), trainIndex)
+valIndex <- sample(val_test_Index, 0.5 * length(val_test_Index))
+testIndex <- setdiff(val_test_Index, valIndex)
+
+train_data <- data[trainIndex, ]
+val_data <- data[valIndex, ]
+test_data <- data[testIndex, ]
+
+# Creating squared term for COW in training, validation, and test sets
+train_data$COW_squared <- train_data$COW^2
+val_data$COW_squared <- val_data$COW^2
+test_data$COW_squared <- test_data$COW^2
+
+# Creating a Polynomial Regression model for GHG using only COW on the training set
+lm_model_poly_cow <- lm(TGE ~ COW + COW_squared, data = train_data)
+
+# Predicting GHG emissions on the validation set using the Polynomial model with COW
+predicted_values_val <- predict(lm_model_poly_cow, newdata = val_data)
+
+# Calculating evaluation metrics for the Polynomial model with COW on the validation set
+mse_val <- mean((predicted_values_val - val_data$TGE)^2)
+r_squared_val <- 1 - (sum((val_data$TGE - predicted_values_val)^2) / sum((val_data$TGE - mean(val_data$TGE))^2))
+
+cat("Mean Squared Error (MSE) - Polynomial Model (COW) on Validation Set:", mse_val, "\n")
+cat("R-squared - Polynomial Model (COW) on Validation Set:", r_squared_val, "\n")
+
+# Predicting GHG emissions on the test set using the Polynomial model with COW
+predicted_values_test <- predict(lm_model_poly_cow, newdata = test_data)
+
+# Calculating evaluation metrics for the Polynomial model with COW on the test set
+mse_test <- mean((predicted_values_test - test_data$TGE)^2)
+r_squared_test <- 1 - (sum((test_data$TGE - predicted_values_test)^2) / sum((test_data$TGE - mean(test_data$TGE))^2))
+
+cat("Mean Squared Error (MSE) - Polynomial Model (COW) on Test Set:", mse_test, "\n")
+cat("R-squared - Polynomial Model (COW) on Test Set:", r_squared_test, "\n")
+
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year', 'TGE', and 'COW' columns
+
+# Create empty vectors to store predicted and actual values
+predicted_values <- c()
+actual_values <- c()
+years <- c()
+
+# Loop through years to predict GHG emissions for subsequent years and collect predicted and actual values
+for (year in 2001:2020) {  # Predicting from 2001 to 2020
+  # Subset the data for the current training period
+  train_data <- data[data$Year >= (year - 11) & data$Year <= (year - 1), ]
+  
+  # Train a model using data from 10 years with only 'COW'
+  lm_model <- lm(TGE ~ COW, data = train_data)
+  
+  # Predict GHG emissions for the next year
+  next_year_data <- data.frame(COW = year + 1)  # Creating data for the next year with 'COW'
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Store predicted and actual values in vectors
+  predicted_values <- c(predicted_values, as.numeric(predicted_ghg))
+  actual_values <- c(actual_values, as.numeric(actual_ghg_next_year))
+  years <- c(years, year + 1)
+}
+
+# Create a dataframe for visualization
+results <- data.frame(Year = years, Actual = actual_values, Predicted = predicted_values)
+
+# Calculate R-squared
+r_squared <- 1 - (sum((actual_values - predicted_values)^2) / sum((actual_values - mean(actual_values))^2))
+
+# Print R-squared
+cat("R-squared:", r_squared, "\n")
+
+# Plotting GHG emissions over years with predicted and actual values
+library(ggplot2)
+ggplot(results, aes(x = Year)) +
+  geom_line(aes(y = Predicted), color = "blue") +
+  geom_point(aes(y = Actual), color = "red", size = 2) +
+  labs(title = "Predicted vs Actual GHG Emissions Over Years (Using COW)", x = "Year", y = "GHG Emissions") +
+  theme_minimal()  # Using a minimal theme
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year' and 'TGE' columns
+
+# Subset the data for the years 1990-2000
+train_data <- data[data$Year >= 1990 & data$Year <= 2000, ]
+
+# Train a model using data from 1990-2000
+lm_model <- lm(TGE ~ Year, data = train_data)
+
+# Predict GHG emissions for the next year (2001)
+next_year_data <- data.frame(Year = 2001)  # Creating data for the next year
+predicted_ghg <- predict(lm_model, newdata = next_year_data)
+
+# Actual GHG for the year 2001
+actual_ghg_2001 <- data[data$Year == 2001, "TGE"]
+
+# Display the predicted and actual GHG emissions for the year 2001
+result <- data.frame(Actual = actual_ghg_2001, Predicted = predicted_ghg)
+print(result)
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year' and 'TGE' columns
+
+# Loop through years to predict GHG emissions for subsequent years
+for (year in 2001:2010) {
+  # Subset the data for the current training period
+  train_data <- data[data$Year >= (year - 11) & data$Year <= (year - 1), ]
+  
+  # Train a model using data from 10 years (1991-2001 for predicting 2002, 1992-2002 for predicting 2003, and so on)
+  lm_model <- lm(TGE ~ Year, data = train_data)
+  
+  # Predict GHG emissions for the next year
+  next_year_data <- data.frame(Year = year + 1)  # Creating data for the next year
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Display the predicted and actual GHG emissions for the next year
+  cat("Year:", year + 1, "\tPredicted GHG:", as.numeric(predicted_ghg), "\tActual GHG:", as.numeric(actual_ghg_next_year), "\n")
+}
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year' and 'TGE' columns
+
+# Create empty vectors to store predicted and actual values
+predicted_values <- c()
+actual_values <- c()
+years <- c()
+
+# Loop through years to predict GHG emissions for subsequent years and collect predicted and actual values
+for (year in 2001:2020) {
+  # Subset the data for the current training period
+  train_data <- data[data$Year >= (year - 11) & data$Year <= (year - 1), ]
+  
+  # Train a model using data from 10 years (1991-2001 for predicting 2002, 1992-2002 for predicting 2003, and so on)
+  lm_model <- lm(TGE ~ Year, data = train_data)
+  
+  # Predict GHG emissions for the next year
+  next_year_data <- data.frame(Year = year + 1)  # Creating data for the next year
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Store predicted and actual values in vectors
+  predicted_values <- c(predicted_values, as.numeric(predicted_ghg))
+  actual_values <- c(actual_values, as.numeric(actual_ghg_next_year))
+  years <- c(years, year + 1)
+  
+  # Display the predicted and actual GHG emissions for the next year
+  cat("Year:", year + 1, "\tPredicted GHG:", as.numeric(predicted_ghg), "\tActual GHG:", as.numeric(actual_ghg_next_year), "\n")
+}
+
+# Create a dataframe for visualization
+results <- data.frame(Year = years, Actual = actual_values, Predicted = predicted_values)
+
+# Plotting GHG emissions over years with predicted and actual values
+library(ggplot2)
+ggplot(results, aes(x = Year)) +
+  geom_line(aes(y = Predicted), color = "blue") +
+  geom_point(aes(y = Actual), color = "red", size = 2) +
+  labs(title = "Predicted(B) vs Actual(R) GHG Emissions Over Years", x = "Year", y = "GHG Emissions")
+
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year' and 'TGE' columns
+
+# Create empty vectors to store predicted and actual values
+predicted_values <- c()
+actual_values <- c()
+years <- c()
+
+# Loop through years to predict GHG emissions for subsequent years and collect predicted and actual values
+for (year in 2001:2020) {  # Predicting from 2001 to 2020
+  # Subset the data for the current training period
+  train_data <- data[data$Year >= (year - 11) & data$Year <= (year - 1), ]
+  
+  # Train a model using data from 10 years
+  lm_model <- lm(TGE ~ Year, data = train_data)
+  
+  # Predict GHG emissions for the next year
+  next_year_data <- data.frame(Year = year + 1)  # Creating data for the next year
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Store predicted and actual values in vectors
+  predicted_values <- c(predicted_values, as.numeric(predicted_ghg))
+  actual_values <- c(actual_values, as.numeric(actual_ghg_next_year))
+  years <- c(years, year + 1)
+}
+
+
+
+# Create a dataframe for visualization
+results <- data.frame(Year = years, Actual = actual_values, Predicted = predicted_values)
+
+# Plotting GHG emissions over years with predicted and actual values
+library(ggplot2)
+ggplot(results, aes(x = Year)) +
+  geom_line(aes(y = Predicted), color = "blue") +
+  geom_point(aes(y = Actual), color = "red", size = 2) +
+  labs(title = "Predicted vs Actual GHG Emissions Over Years", x = "Year", y = "GHG Emissions(MMT)")
+
+```
+
+```{r}
+# Assuming 'data' is the dataset containing the 'Year' and 'TGE' columns
+
+# Create empty vectors to store predicted and actual values
+predicted_values <- c()
+actual_values <- c()
+years <- c()
+
+# Loop through years to predict GHG emissions for subsequent years and collect predicted and actual values
+for (year in 2001:2020) {  # Predicting from 2001 to 2020
+  # Subset the data for the current training period
+  train_data <- data[data$Year >= (year - 11) & data$Year <= (year - 1), ]
+  
+  # Train a model using data from 10 years
+  lm_model <- lm(TGE ~ Year, data = train_data)
+  
+  # Predict GHG emissions for the next year
+  next_year_data <- data.frame(Year = year + 1)  # Creating data for the next year
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Store predicted and actual values in vectors
+  predicted_values <- c(predicted_values, as.numeric(predicted_ghg))
+  actual_values <- c(actual_values, as.numeric(actual_ghg_next_year))
+  years <- c(years, year + 1)
+}
+
+# Create a dataframe for visualization
+results <- data.frame(Year = years, Actual = actual_values, Predicted = predicted_values)
+
+# Calculate R-squared
+r_squared <- 1 - (sum((actual_values - predicted_values)^2) / sum((actual_values - mean(actual_values))^2))
+
+# Print R-squared
+cat("R-squared:", r_squared, "\n")
+
+# Plotting GHG emissions over years with predicted and actual values
+library(ggplot2)
+ggplot(results, aes(x = Year)) +
+  geom_line(aes(y = Predicted), color = "blue") +
+  geom_point(aes(y = Actual), color = "red", size = 2) +
+  labs(title = "Predicted vs Actual GHG Emissions Over Years", x = "Year", y = "GHG Emissions") +
+  theme_minimal()  # Using a minimal theme
+
+```
+
+```{r}
+# Extracting the names of all columns except 'Year'
+predictors <- names(data)[!names(data) %in% c("Year")]
+
+# Create empty vectors to store predicted and actual values
+predicted_values <- c()
+actual_values <- c()
+years <- c()
+
+# Train a model using all available data and predict GHG emissions for subsequent years
+for (year in 2001:2020) {  # Predicting from 2001 to 2020
+  # Subset the data for training using all available data up to the current year
+  train_data <- data[data$Year <= year, predictors]
+  
+  # Train a model using all available variables
+  lm_model <- lm(TGE ~ ., data = train_data)
+  
+  # Create next_year_data for prediction
+  next_year_data <- data[data$Year == (year + 1), predictors]  # Use predictors for prediction
+  
+  # Predict GHG emissions for the next year
+  predicted_ghg <- predict(lm_model, newdata = next_year_data)
+  
+  # Actual GHG for the next year
+  actual_ghg_next_year <- data[data$Year == (year + 1), "TGE"]
+  
+  # Store predicted and actual values in vectors
+  predicted_values <- c(predicted_values, as.numeric(predicted_ghg))
+  actual_values <- c(actual_values, as.numeric(actual_ghg_next_year))
+  years <- c(years, year + 1)
+}
+
+# Calculate evaluation metrics: MAE, RMSE, R-squared
+mae <- mean(abs(predicted_values - actual_values))
+rmse <- sqrt(mean((predicted_values - actual_values)^2))
+r_squared <- 1 - (sum((actual_values - predicted_values)^2) / sum((actual_values - mean(actual_values))^2))
+
+# Create a dataframe for visualization
+results <- data.frame(Year = years, Actual = actual_values, Predicted = predicted_values)
+
+# Print evaluation metrics
+cat("Mean Absolute Error (MAE):", mae, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("R-squared:", r_squared, "\n")
+
+
+# Display predicted and actual values
+print(results)
+
+# Plotting GHG emissions over years with predicted and actual values
+ggplot(results, aes(x = Year)) +
+  geom_line(aes(y = Predicted), color = "blue") +
+  geom_point(aes(y = Actual), color = "red", size = 2) +
+  labs(title = "Predicted vs Actual GHG Emissions Over Years", x = "Year", y = "GHG Emissions (MMT)")
+
+
+```
